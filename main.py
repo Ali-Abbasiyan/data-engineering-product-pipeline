@@ -9,8 +9,9 @@ API_URL = "https://dummyjson.com/products"
 PAGE_LIMIT = 30
 REQUEST_TIMEOUT = 30
 
-RAW_DIRECTORY = Path("data/raw")
-RAW_OUTPUT_FILE = RAW_DIRECTORY / "products.json"
+RAW_OUTPUT_FILE = Path("data/raw/products.json")
+VALID_OUTPUT_FILE = Path("data/processed/valid_products.json")
+INVALID_OUTPUT_FILE = Path("data/rejected/invalid_products.json")
 
 
 def fetch_products(
@@ -19,13 +20,6 @@ def fetch_products(
 ) -> list[dict[str, Any]]:
     """
     Fetch all products from a paginated API.
-
-    Args:
-        url: API endpoint.
-        limit: Number of products requested per page.
-
-    Returns:
-        A list containing all fetched products.
     """
     all_products: list[dict[str, Any]] = []
     skip = 0
@@ -62,16 +56,74 @@ def fetch_products(
     return all_products
 
 
+def validate_product(
+    product: dict[str, Any],
+) -> list[str]:
+    """
+    Validate one product and return its validation errors.
+
+    An empty list means that the product is valid.
+    """
+    errors: list[str] = []
+
+    product_id = product.get("id")
+    title = product.get("title")
+    price = product.get("price")
+    category = product.get("category")
+
+    if not isinstance(product_id, int) or product_id <= 0:
+        errors.append("id must be a positive integer")
+
+    if not isinstance(title, str) or not title.strip():
+        errors.append("title must be a non-empty string")
+
+    if (
+        not isinstance(price, (int, float))
+        or isinstance(price, bool)
+        or price < 0
+    ):
+        errors.append("price must be a non-negative number")
+
+    if not isinstance(category, str) or not category.strip():
+        errors.append("category must be a non-empty string")
+
+    return errors
+
+
+def separate_valid_and_invalid_products(
+    products: list[dict[str, Any]],
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+]:
+    """
+    Separate valid products from invalid products.
+    """
+    valid_products: list[dict[str, Any]] = []
+    invalid_products: list[dict[str, Any]] = []
+
+    for product in products:
+        errors = validate_product(product)
+
+        if errors:
+            invalid_products.append(
+                {
+                    "product": product,
+                    "validation_errors": errors,
+                }
+            )
+        else:
+            valid_products.append(product)
+
+    return valid_products, invalid_products
+
+
 def save_json(
     data: list[dict[str, Any]],
     output_file: Path,
 ) -> None:
     """
-    Save data as a JSON file.
-
-    Args:
-        data: Records that should be saved.
-        output_file: Destination file path.
+    Save records to a JSON file.
     """
     output_file.parent.mkdir(
         parents=True,
@@ -101,8 +153,27 @@ def main() -> None:
         output_file=RAW_OUTPUT_FILE,
     )
 
+    valid_products, invalid_products = (
+        separate_valid_and_invalid_products(products)
+    )
+
+    save_json(
+        data=valid_products,
+        output_file=VALID_OUTPUT_FILE,
+    )
+
+    save_json(
+        data=invalid_products,
+        output_file=INVALID_OUTPUT_FILE,
+    )
+
     print("Total fetched products:", len(products))
+    print("Valid products:", len(valid_products))
+    print("Invalid products:", len(invalid_products))
+
     print("Raw data saved to:", RAW_OUTPUT_FILE)
+    print("Valid data saved to:", VALID_OUTPUT_FILE)
+    print("Invalid data saved to:", INVALID_OUTPUT_FILE)
 
 
 if __name__ == "__main__":
