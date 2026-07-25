@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import requests
 
 
@@ -11,6 +12,7 @@ REQUEST_TIMEOUT = 30
 
 RAW_OUTPUT_FILE = Path("data/raw/products.json")
 PROCESSED_OUTPUT_FILE = Path("data/processed/products.json")
+PARQUET_OUTPUT_FILE = Path("data/processed/products.parquet")
 INVALID_OUTPUT_FILE = Path("data/rejected/invalid_products.json")
 
 
@@ -187,6 +189,26 @@ def save_json(
         )
 
 
+def save_parquet(
+    data: list[dict[str, Any]],
+    output_file: Path,
+) -> None:
+    """
+    Save records to a Parquet file.
+    """
+    output_file.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    dataframe = pd.DataFrame(data)
+
+    dataframe.to_parquet(
+        output_file,
+        index=False,
+    )
+
+
 def main() -> None:
     products = fetch_products(
         url=API_URL,
@@ -211,6 +233,11 @@ def main() -> None:
         output_file=PROCESSED_OUTPUT_FILE,
     )
 
+    save_parquet(
+        data=transformed_products,
+        output_file=PARQUET_OUTPUT_FILE,
+    )
+
     save_json(
         data=invalid_products,
         output_file=INVALID_OUTPUT_FILE,
@@ -226,8 +253,12 @@ def main() -> None:
 
     print("Raw data saved to:", RAW_OUTPUT_FILE)
     print(
-        "Processed data saved to:",
+        "Processed JSON saved to:",
         PROCESSED_OUTPUT_FILE,
+    )
+    print(
+        "Processed Parquet saved to:",
+        PARQUET_OUTPUT_FILE,
     )
     print(
         "Invalid data saved to:",
