@@ -3,59 +3,17 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import requests
+
+from src.extract import fetch_products
 
 
 API_URL = "https://dummyjson.com/products"
 PAGE_LIMIT = 30
-REQUEST_TIMEOUT = 30
 
 RAW_OUTPUT_FILE = Path("data/raw/products.json")
 PROCESSED_OUTPUT_FILE = Path("data/processed/products.json")
 PARQUET_OUTPUT_FILE = Path("data/processed/products.parquet")
 INVALID_OUTPUT_FILE = Path("data/rejected/invalid_products.json")
-
-
-def fetch_products(
-    url: str,
-    limit: int = PAGE_LIMIT,
-) -> list[dict[str, Any]]:
-    """
-    Fetch all products from a paginated API.
-    """
-    all_products: list[dict[str, Any]] = []
-    skip = 0
-
-    while True:
-        params = {
-            "limit": limit,
-            "skip": skip,
-        }
-
-        response = requests.get(
-            url,
-            params=params,
-            timeout=REQUEST_TIMEOUT,
-        )
-
-        response.raise_for_status()
-
-        data = response.json()
-        products = data["products"]
-
-        all_products.extend(products)
-
-        print(
-            f"Fetched {len(products)} products "
-            f"with skip={skip}"
-        )
-
-        if len(products) < limit:
-            break
-
-        skip += limit
-
-    return all_products
 
 
 def validate_product(
