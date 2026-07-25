@@ -1,10 +1,7 @@
-import json
 from pathlib import Path
-from typing import Any
-
-import pandas as pd
 
 from src.extract import fetch_products
+from src.storage import save_json, save_parquet
 from src.transform import transform_products
 from src.validate import separate_valid_and_invalid_products
 
@@ -16,50 +13,6 @@ RAW_OUTPUT_FILE = Path("data/raw/products.json")
 PROCESSED_OUTPUT_FILE = Path("data/processed/products.json")
 PARQUET_OUTPUT_FILE = Path("data/processed/products.parquet")
 INVALID_OUTPUT_FILE = Path("data/rejected/invalid_products.json")
-
-
-def save_json(
-    data: list[dict[str, Any]],
-    output_file: Path,
-) -> None:
-    """
-    Save records to a JSON file.
-    """
-    output_file.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    with output_file.open(
-        mode="w",
-        encoding="utf-8",
-    ) as file:
-        json.dump(
-            data,
-            file,
-            ensure_ascii=False,
-            indent=2,
-        )
-
-
-def save_parquet(
-    data: list[dict[str, Any]],
-    output_file: Path,
-) -> None:
-    """
-    Save records to a Parquet file.
-    """
-    output_file.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    dataframe = pd.DataFrame(data)
-
-    dataframe.to_parquet(
-        output_file,
-        index=False,
-    )
 
 
 def main() -> None:
