@@ -10,7 +10,7 @@ PAGE_LIMIT = 30
 REQUEST_TIMEOUT = 30
 
 RAW_OUTPUT_FILE = Path("data/raw/products.json")
-VALID_OUTPUT_FILE = Path("data/processed/valid_products.json")
+PROCESSED_OUTPUT_FILE = Path("data/processed/products.json")
 INVALID_OUTPUT_FILE = Path("data/rejected/invalid_products.json")
 
 
@@ -60,9 +60,9 @@ def validate_product(
     product: dict[str, Any],
 ) -> list[str]:
     """
-    Validate one product and return its validation errors.
+    Validate one product and return validation errors.
 
-    An empty list means that the product is valid.
+    An empty list means the product is valid.
     """
     errors: list[str] = []
 
@@ -118,6 +118,51 @@ def separate_valid_and_invalid_products(
     return valid_products, invalid_products
 
 
+def transform_product(
+    product: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Transform one valid product into a clean structure.
+    """
+    price = product["price"]
+
+    discount_percentage = product.get(
+        "discountPercentage",
+        0,
+    )
+
+    final_price = price * (
+        1 - discount_percentage / 100
+    )
+
+    return {
+        "product_id": product["id"],
+        "title": product["title"].strip(),
+        "category": product["category"].strip().lower(),
+        "brand": product.get("brand"),
+        "original_price": price,
+        "discount_percentage": discount_percentage,
+        "final_price": round(final_price, 2),
+        "rating": product.get("rating"),
+        "stock": product.get("stock", 0),
+    }
+
+
+def transform_products(
+    products: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Transform all valid products.
+    """
+    transformed_products: list[dict[str, Any]] = []
+
+    for product in products:
+        transformed_product = transform_product(product)
+        transformed_products.append(transformed_product)
+
+    return transformed_products
+
+
 def save_json(
     data: list[dict[str, Any]],
     output_file: Path,
@@ -157,9 +202,13 @@ def main() -> None:
         separate_valid_and_invalid_products(products)
     )
 
+    transformed_products = transform_products(
+        valid_products
+    )
+
     save_json(
-        data=valid_products,
-        output_file=VALID_OUTPUT_FILE,
+        data=transformed_products,
+        output_file=PROCESSED_OUTPUT_FILE,
     )
 
     save_json(
@@ -170,10 +219,20 @@ def main() -> None:
     print("Total fetched products:", len(products))
     print("Valid products:", len(valid_products))
     print("Invalid products:", len(invalid_products))
+    print(
+        "Transformed products:",
+        len(transformed_products),
+    )
 
     print("Raw data saved to:", RAW_OUTPUT_FILE)
-    print("Valid data saved to:", VALID_OUTPUT_FILE)
-    print("Invalid data saved to:", INVALID_OUTPUT_FILE)
+    print(
+        "Processed data saved to:",
+        PROCESSED_OUTPUT_FILE,
+    )
+    print(
+        "Invalid data saved to:",
+        INVALID_OUTPUT_FILE,
+    )
 
 
 if __name__ == "__main__":
